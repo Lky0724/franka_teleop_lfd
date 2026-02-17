@@ -24,7 +24,7 @@ __pycache__/
 
 # --- IDE 和编辑器配置 ---
 # VS Code (如果你不想上传个人配置，取消注释)
-# .vscode/
+.vscode/
 
 # JetBrains (CLion, PyCharm)
 .idea/
