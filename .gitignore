@@ -1,15 +1,55 @@
-CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-Makefile
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
-_deps
-CMakeUserPresets.json
+# --- ROS / Catkin 构建系统生成的文件 ---
+# 忽略任何位置的 build, devel, install, logs 文件夹
+**/build/
+**/devel/
+**/install/
+**/logs/
+**/.catkin_tools/
+**/.catkin_workspace
+
+# --- C++ 编译文件 ---
+*.o
+*.obj
+*.so
+*.so.*
+*.a
+*.lib
+*.dll
+*.dylib
+
+# --- Python 生成文件 ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- IDE 和编辑器配置 ---
+# VS Code (如果你不想上传个人配置，取消注释)
+# .vscode/
+
+# JetBrains (CLion, PyCharm)
+.idea/
+cmake-build-*/
+
+# --- 临时文件和元数据 ---
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+
+# --- 生成的二进制文件 (bin) ---
+# 这通常在 build/ 中，但有时会在 src 中生成
+**/bin/
+**/lib/
+
+# --- ROS 特定的隐藏文件 ---
+.ros/
+ros_*.bag
+
+# 忽略 TeleopData 数据文件夹
+**/TeleopData/
+**/*.txt
+**/*.csv
 
 # CLion
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

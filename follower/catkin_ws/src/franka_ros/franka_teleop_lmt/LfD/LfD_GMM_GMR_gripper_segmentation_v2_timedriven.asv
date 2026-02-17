@@ -1,0 +1,136 @@
+clear all; close all; clc;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% RMIL @TU München 2026
+% Time-Driven Segmented GMR with Connectivity Visualization
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% 1. Parameters & Frame Setup
+model.nbStates_range = 2:8;                 % BIC 范围
+model.nbD = 100;                            % 每个片段采样点数
+model.nbSamples = 3;                        % 演示次数
+dataset_path = '../TeleopData/2.13_GMM_5_datasets_with_gripper_pick_and_place/'; 
+
+%% 2. Load and Organize Demonstrations by Segment
+fprintf('Loading and segmenting data...\n');
+Segments = []; 
+global_start_points = []; 
+global_end_points = [];
+
+for n = 1:model.nbSamples
+    fileName = [dataset_path 'follower_' num2str(n) '.txt'];
+    [pos_cells, grip_vals] = loadDemos_segmented(fileName);
+    num_segments_in_file = length(pos_cells);
+
+    if ~isempty(pos_cells)
+        first_seg_data = pos_cells{1}'; 
+        if ~isempty(first_seg_data), global_start_points = [global_start_points, first_seg_data(:,1)]; end
+        last_seg_data = pos_cells{end}';
+        if ~isempty(last_seg_data), global_end_points = [global_end_points, last_seg_data(:,end)]; end
+    end
+    
+    if n == 1
+        totalSegments = num_segments_in_file;
+        for s = 1:totalSegments
+            Segments(s).Data = [];      
+            Segments(s).Demos = [];     
+            Segments(s).GripState = grip_vals(s);
+        end
+    end
+    
+    for s = 1:totalSegments
+        raw_pos = pos_cells{s}'; 
+        if size(raw_pos, 2) < 2, continue; end
+        pos = spline(1:size(raw_pos,2), raw_pos, linspace(1, size(raw_pos,2), model.nbD));
+        t_vec = linspace(1, model.nbD, model.nbD);
+        Segments(s).Data = [Segments(s).Data; [t_vec; pos]']; 
+        Segments(s).Demos(n).pos = pos;
+    end
+end
+
+% 计算全局参考坐标系（仅用于绘图辅助）
+mean_start_pos = mean(global_start_points, 2)';
+mean_end_pos   = mean(global_end_points, 2)';
+fixed_orient = [0, 0, 3.14]; 
+p_global(1).A = eul2rotm(fixed_orient, 'XYZ'); p_global(1).b = mean_start_pos'; p_global(1).color = [0.0, 1.0, 0.0];
+p_global(2).A = eul2rotm(fixed_orient, 'XYZ'); p_global(2).b = mean_end_pos'; p_global(2).color = [1.0, 0.0, 0.0];
+
+Learned_Segments = cell(totalSegments, 1);
+
+%% 3. Main Loop: Train and Reproduce
+for s = 1:totalSegments
+    fprintf('\n--- Processing Segment %d / %d ---\n', s, totalSegments);
+    Data = Segments(s).Data; 
+    
+    % BIC 自动选元
+    BICs = zeros(1, max(model.nbStates_range));
+    BICs(:) = Inf;
+    for K = model.nbStates_range
+        try
+            gm = fitgmdist(Data, K, 'RegularizationValue', 1e-6, 'Replicates', 3, 'Options', statset('MaxIter', 500));
+            BICs(K) = gm.BIC;
+        catch
+        end
+    end
+    [~, K_opt] = min(BICs);
+    GMModel = fitgmdist(Data, K_opt, 'RegularizationValue', 1e-6, 'Replicates', 5, 'Options', statset('MaxIter', 1000));
+    
+    % GMR 时间驱动复现
+    x_repro = zeros(3, model.nbD);
+    t_query = linspace(1, model.nbD, model.nbD);
+    
+    for t = 1:model.nbD
+        curr_t = t_query(t);
+        h = zeros(1, K_opt);
+        for k = 1:K_opt
+            h(k) = GMModel.ComponentProportion(k) * mvnpdf(curr_t, GMModel.mu(k,1), GMModel.Sigma(1,1,k));
+        end
+        h = h / (sum(h) + realmin);
+        for k = 1:K_opt
+            pos_k = GMModel.mu(k,2:4)' + GMModel.Sigma(2:4,1,k) / GMModel.Sigma(1,1,k) * (curr_t - GMModel.mu(k,1));
+            x_repro(:,t) = x_repro(:,t) + h(k) * pos_k;
+        end
+    end
+    Learned_Segments{s} = x_repro;
+end
+
+%% 4. Global Connectivity Visualization
+figure('Name', 'Global Trajectory Connectivity', 'Color', 'w', 'Position', [100 100 1000 700]);
+hold on; grid on; axis equal;
+title('Learned Trajectory with Segment Connectivity');
+
+seg_colors = lines(totalSegments);
+h_seg = [];
+legend_labels = {};
+
+for s = 1:totalSegments
+    % 确定线型（闭合/打开）
+    ls = '--'; if Segments(s).GripState == 1, ls = '-'; end
+    
+    % 1. 绘制轨迹片段
+    h_p = plot3(Learned_Segments{s}(1,:), Learned_Segments{s}(2,:), Learned_Segments{s}(3,:), ...
+          'Color', seg_colors(s,:), 'LineWidth', 3.0, 'LineStyle', ls);
+    h_seg = [h_seg, h_p];
+    legend_labels{end+1} = sprintf('Segment %d (Gripper: %d)', s, Segments(s).GripState);
+    
+    % 2. 绘制起始点（绿色点）
+    plot3(Learned_Segments{s}(1,1), Learned_Segments{s}(2,1), Learned_Segments{s}(3,1), ...
+          'go', 'MarkerFaceColor', 'g', 'MarkerSize', 8, 'HandleVisibility', 'off');
+    
+    % 3. 绘制终止点（红色点）
+    plot3(Learned_Segments{s}(1,end), Learned_Segments{s}(2,end), Learned_Segments{s}(3,end), ...
+          'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 6, 'HandleVisibility', 'off');
+    
+    % 4. 标注文本（S1, S2...）
+    text(Learned_Segments{s}(1,1), Learned_Segments{s}(2,1), Learned_Segments{s}(3,1) + 0.03, ...
+         sprintf('S%d', s), 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w', 'EdgeColor', 'k');
+end
+
+% 绘制全局起始/结束坐标轴作为参考
+plotFrames3D(p_global);
+
+xlabel('x [m]'); ylabel('y [m]'); zlabel('z [m]');
+view(3);
+legend(h_seg, legend_labels, 'Location', 'northeastoutside');
+
+fprintf('Visualization complete. Green circles = Segment Start, Red circles = Segment End.\n');

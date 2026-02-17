@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Teleop & Repro Configuration -->
+  <arg name="demo_num_arg"  default= "1" /> <!-- demo number -->
+  <param name="demo_num" value="$(arg demo_num_arg)"  /> <!-- demo number in parameter server-->
+
+  <!-- Robot Customization -->
+  <arg name="arm_id"      default="panda" doc="Name of the robot to spawn" />
+  <arg name="use_gripper" default="true"  doc="Should a franka hand be mounted on the flange?" />
+  <arg name="controller"  default="cartesian_impedance_example_controller"     doc="Which example controller should be started? (One of {cartesian_impedance,model,force,joint_position,joint_velocity}_example_controller)" />
+  
+  <!-- Spawn required ROS controllers -->
+
+  <include file="$(find franka_control)/launch/franka_control.launch" 
+           pass_all_args="true"/>
+
+
+  <rosparam command="load" 
+            file="$(find franka_teleop_lmt)/config/franka_example_controllers.yaml" 
+            subst_value="true" />
+  
+  <node name="$(arg arm_id)_controller_spawner"
+        pkg="controller_manager"
+        type="spawner"
+        respawn="false" output="screen"
+        args="$(arg controller)"/> 
+
+  <!-- Gripper node -->
+  <node name="$(arg arm_id)_gripper_command_node" pkg="franka_teleop_lmt" type="gripper_command_node" output="screen"/>
+  
+  <!-- Leader node  --> 
+  <!-- <node name="leader" pkg="franka_teleop_lmt" type="leader_node" output="screen"  args="$(arg demo_num_arg)"/>   -->
+   
+  <!-- LfD node 
+  <node name="LfD_node" pkg="franka_teleop_lmt" type="LfD_node" output="screen"/>-->
+
+</launch>
+
