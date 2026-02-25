@@ -2,9 +2,9 @@
 
 ### Introduction
 
-This project is developed based on libfranka and [franka_ros](https://github.com/frankarobotics/franka_ros), a ROS interface for Franka research robots. 
+This project is developed based on [libfranka](https://github.com/frankarobotics/libfranka) and [franka_ros](https://github.com/frankarobotics/franka_ros), a ROS interface for Franka research robots. 
 
-This project implements teleoperation with force feedback and learning from demonstration with GMM  on robot arm (follower, Franka Emika Panda) and haptic device (leader, Novint Falcon).
+This project implements **teleoperation** with force feedback and **learning from demonstration** with GMM on robot arm (follower, Franka Emika Panda) and haptic device (leader, Novint Falcon).
 
 The repository contains two ROS workspaces /leader and /follower. Each of them should run on an individual PC. Leader PC takes command from haptic device, while follower PC receives command and control the robot arm. The two PCs are connected through LAN and share the roscore running on follower PC.
 
@@ -36,7 +36,7 @@ LfD (reproducing): https://drive.google.com/file/d/1rHW_FaXfECiejPMdE_EVK8i1DROt
 
 ### Acknowledgement
 
-This project is from course **Remote Machine Intelligence Lab** (25/26WS) at Technical University of Munich.
+This project is a team assignment from course **Remote Machine Intelligence Lab** (25/26WS) at Technical University of Munich. Team member: Kaiyuan Luo, Zhiheng Quan.
 
 We would like to thank the supervisors and staff of the **Remote Machine Intelligence Lab** course at TUM for their guidance, hardware support, and valuable feedback throughout this project.
 
